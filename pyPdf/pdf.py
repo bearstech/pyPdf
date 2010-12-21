@@ -1126,6 +1126,19 @@ class PageObject(DictionaryObject):
         self._mergePage(page2)
 
     ##
+    # Merges the content streams of two pages into one.  Resource references
+    # (i.e. fonts) are maintained from both pages.  The mediabox/cropbox/etc
+    # of this page are not altered.  The parameter page's content stream will
+    # be added to the begin of this page's content stream, meaning that it
+    # will be drawn before, or "on bottom" of this page.
+    # <p>
+    # Stability: Added in v1.13, will exist for all future 1.x releases.
+    # @param page2 An instance of {@link #PageObject PageObject} to be merged
+    #              into this one.
+    def mergePageBottom(self, page2,):
+        self._mergePage(page2, onbottom=True)
+
+    ##
     # Actually merges the content streams of two pages into one. Resource
     # references (i.e. fonts) are maintained from both pages. The
     # mediabox/cropbox/etc of this page are not altered. The parameter page's
@@ -1139,7 +1152,10 @@ class PageObject(DictionaryObject):
     #                            contents stream. Must return: new contents
     #                            stream. If omitted, the content stream will
     #                            not be modified.
-    def _mergePage(self, page2, page2transformation=None):
+    # @param onbottom A boolean to permit merge content stream before original
+    #                 page content, meaning that it will be drawn before, or
+    #                 "on bottom" of this page.
+    def _mergePage(self, page2, page2transformation=None, onbottom=False):
         # First we work on merging the resource dictionaries.  This allows us
         # to find out what symbols in the content streams we might need to
         # rename.
@@ -1165,7 +1181,7 @@ class PageObject(DictionaryObject):
         newContentArray = ArrayObject()
 
         originalContent = self.getContents()
-        if originalContent is not None:
+        if originalContent is not None and not onbottom:
             newContentArray.append(PageObject._pushPopGS(
                   originalContent, self.pdf))
 
@@ -1177,6 +1193,11 @@ class PageObject(DictionaryObject):
                 page2Content, rename, self.pdf)
             page2Content = PageObject._pushPopGS(page2Content, self.pdf)
             newContentArray.append(page2Content)
+
+        # Permit to merge "on bottom"
+        if originalContent is not None and onbottom:
+            newContentArray.append(PageObject._pushPopGS(
+                  originalContent, self.pdf))
 
         self[NameObject('/Contents')] = ContentStream(newContentArray, self.pdf)
         self[NameObject('/Resources')] = newResources
